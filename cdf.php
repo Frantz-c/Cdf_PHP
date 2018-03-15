@@ -9,8 +9,8 @@
 ** 
 ** Renvoie le nom du ou des fichier(s) ainsi que le N° de la ou des ligne(s) correspondante(s)
 ** 
-** cdf -e="regex" [-d="dossier"]? [-n="niveau récursivité"]? [-a]? [-v]?
-** cdf "regex" (-v auto && -r=5)
+** cdf "regex" [-d="dossier"]? [-r="récursivité"]? [-f="fichier1(,[^,]+)*"] [-a]?
+**
 */
 
 include "cliarg.php";
@@ -50,12 +50,11 @@ else if ($argc >= 2) {
 function PrintHelp()
 {
   echo "\e[7;31m                             Mode d'emploi :                                \e[0m" . PHP_EOL . PHP_EOL
-    . "\e[1;31mcdf -e\e[0m=\e[0;33m\"regex\"\e[0m"
-    . " [\e[1;31m-d\e[0m=\e[0;33m\"repertoire\"\e[0m]\e[1;32m?\e[0m"
-    . " [\e[1;31m-r\e[0m=\e[0;33m\"recursivité\"\e[0m]\e[1;32m?\e[0m"
+    . "\e[1;31mcdf \e[0;33m\"regex\"\e[0m"
+    . " [\e[1;31m-d\e[0m=\e[0;33m\"directory\"\e[0m]\e[1;32m?\e[0m"
+    . " [\e[1;31m-r\e[0m=\e[0;33m\"recursive\"\e[0m]\e[1;32m?\e[0m"
     . " [\e[1;31m-f\e[0m=\e[0;33m\"files\"\e[0m]\e[1;32m?\e[0m"
-    . " [\e[1;31m-a\e[0m]\e[1;32m?\e[0m"
-    . " [\e[1;31m-v\e[0m]\e[1;32m?" . PHP_EOL . PHP_EOL
+    . " [\e[1;31m-a\e[0m]\e[1;32m?\e[0m" . PHP_EOL . PHP_EOL
     . "\e[0;32mArguments : " . PHP_EOL
     . "  \e[0;36m-d / --directory : \e[0;37mDossier racine de la recherche \e[0m(\e[1;34mstring\e[0m)" . PHP_EOL
     . "  \e[0;36m-f / --files     : \e[0;37mFichiers dans lesquels chercher \e[0m(\e[1;34mstring(,string)*\e[0m)" . PHP_EOL
@@ -123,7 +122,6 @@ function GetArguments($argv, $argc, $exp)
 class Cdf
 {
   private $arg;
-  //private $result = "";
   private $nb_match = 0;
   private $nb_files = 0;
 
@@ -132,13 +130,12 @@ class Cdf
     $this->arg = $arg;
   }
 
-  public function Search()
+  public function search()
   {
     $txt = " correspondance";
     $txt2 = " fichier";
     
-    //$this->result = PHP_EOL;
-    $this->Recursive(preg_replace("#" . DIRECTORY_SEPARATOR . "$#", "", $this->arg['dir']));
+    $this->recursive(preg_replace("#" . DIRECTORY_SEPARATOR . "$#", "", $this->arg['dir']));
 
     if ($this->nb_match > 1 || $this->nb_match == 0)
       $txt .= 's dans ';
@@ -153,7 +150,7 @@ class Cdf
     echo PHP_EOL . "\e[1;34m" . $this->nb_match . $txt . $this->nb_files . $txt2 . "\e[0m";
   }
 
-  private function ReadFileContent($file, $exp)
+  private function readFileContent($file, $exp)
   {
     $first_time = true;
     $match = "";
@@ -170,22 +167,9 @@ class Cdf
             $match .= "\e[1m\e[7;34m.» $file «.\e[0m" . PHP_EOL
               . "\e[0;37mLigne(s) \e[1;31m" . PHP_EOL;
           }
-/*          
-          if ($this->arg['ver'] === false) 
-          {
-            if ($first_time) {
-              $match .= $count;
-              $first_time = false;
-            }else {
-              $match .= ", $count";
-            }
-          }
-          else 
-          {*/
-            $line = "\e[0;37m$count : \e[0m" . str_replace($m[0], "\e[1;32m" . $m[0] . "\e[0m", $line);
-            $match .= $line;
-            if ($first_time) $first_time = false;
-          //}
+          $line = "\e[0;37m$count : \e[0m" . str_replace($m[0], "\e[1;32m" . $m[0] . "\e[0m", $line);
+          $match .= $line;
+          if ($first_time) $first_time = false;
           $this->nb_match++;
         }
         $count++;
@@ -195,7 +179,7 @@ class Cdf
     }
   }
 
-  private function Recursive($path, $lvl = 1)
+  private function recursive($path, $lvl = 1)
   {
     if ($lvl > $this->arg['rec']) return;
 
@@ -206,7 +190,7 @@ class Cdf
       {
         if ($this->arg['all'] || substr($file, 0, 1) !== ".") {
           if ($file !== ".." && $file !== ".") {
-            if ($this->SearchOnThisFile($file))
+            if ($this->searchOnThisFile($file))
             {
               $file = $path . DIRECTORY_SEPARATOR . $file;
               if (is_dir($file) !== false) {
@@ -215,8 +199,8 @@ class Cdf
               else if (file_exists($file))
               {
                 
-                if ($this->arg['fil'] || $this->Valid_ext($file)) {
-                  $this->ReadFileContent($file, $this->arg['exp']);
+                if ($this->arg['fil'] || $this->validExt($file)) {
+                  $this->readFileContent($file, $this->arg['exp']);
                 }
               }
             }
@@ -227,7 +211,7 @@ class Cdf
     }
   }
 
-  private function SearchOnThisFile($file)
+  private function searchOnThisFile($file)
   {
     if ($this->arg['fil'] === NULL) return true;
 
@@ -241,7 +225,7 @@ class Cdf
     return false;
   }
 
-  private function Valid_ext(string $file)
+  private function validExt(string $file)
   {
     if (is_executable($file) && !preg_match("#\..*$#", $file)) return false;
 
